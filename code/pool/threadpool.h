@@ -20,7 +20,7 @@ public:
                         auto task = std::move(pool->tasks.front());
                         pool->tasks.pop();
                         locker.unlock();    // 任务已取出 可提前解锁
-                        task();             // 回调函数
+                        task();             // do task
                         locker.lock();      // 马上又要取任务 上锁
                     }
                     else if(pool->isClosed) break;

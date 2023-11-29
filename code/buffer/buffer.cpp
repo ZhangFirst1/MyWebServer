@@ -126,6 +126,7 @@ const char* Buffer::BeginPtr_() const{
     return &*buffer_.begin();
 }
 
+// 小于总容量则整体移动到最前面 大于则resize vector
 void Buffer::MakeSpace_(size_t len){
     if (WritableBytes() + PrependableByters() < len){
         buffer_.resize(writePos_ + len + 1);
