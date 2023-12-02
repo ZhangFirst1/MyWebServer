@@ -52,4 +52,3 @@ uint32_t Epoller::GetEvent(size_t i) const {
     assert(i < events_.size() && i >= 0);
     return events_[i].events;
 }
-

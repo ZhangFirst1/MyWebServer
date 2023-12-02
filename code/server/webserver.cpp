@@ -77,27 +77,26 @@ void WebServer::InitEventMode_(int trigMode){
 void WebServer::Start() {
     int timeMS = -1;    /* epoll wait timeout == -1 无事件将阻塞 */
     if(!isClose_) { LOG_INFO("========== Server start =========="); }
-    while(!isClose_) {
-        if(timeoutMS_ > 0){
+    while(!isClose_) {                          // 主事件循环 服务器没关闭就一直执行
+        if(timeoutMS_ > 0){                     // 设置了超时时间大于0
             timeMS = timer_->getNextTick();     // 获取下一次的超时等待时间
         }
-        int eventCnt = epoller_->Wait(timeMS);
-        for(int i = 0; i < eventCnt; i++){
-            // 处理事件
-            int fd = epoller_->GetEventFd(i);
-            uint32_t events = epoller_->GetEvent(i);
-            if(fd == listenFd_){
+        int eventCnt = epoller_->Wait(timeMS);  // 返回事件的数量
+        for(int i = 0; i < eventCnt; i++){      // 处理事件
+            int fd = epoller_->GetEventFd(i);   // 获取第i个事件的文件描述符
+            uint32_t events = epoller_->GetEvent(i); // 第i个事件的具体类型
+            if(fd == listenFd_){                // 如果文件描述符是监听套接字，处理监听事件
                  DealListen_();
-            }else if(events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)){
+            }else if(events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)){ // 处理连接中的异常事件，比如对端关闭连接（`EPOLLRDHUP`），连接发生错误（`EPOLLHUP` 或 `EPOLLERR`）
                 assert(users_.count(fd) > 0);
                 CloseConn_(&users_[fd]);
-            }else if(events & EPOLLIN){
+            }else if(events & EPOLLIN){         // 处理连接的读事件
                 assert(users_.count(fd) > 0);
                 DealRead_(&users_[fd]);
-            }else if(events & EPOLLOUT){
+            }else if(events & EPOLLOUT){        // 处理连接的写事件
                 assert(users_.count(fd) > 0);
                 DealWrite_(&users_[fd]);
-            }else{
+            }else{                              // 未知的事件类型
                 LOG_ERROR("Unexpected event");
             } 
         }
@@ -156,7 +155,7 @@ void WebServer::DealRead_(HttpConn* client) {
     threadpool_->AddTask(std::bind(&WebServer::OnRead_, this, client));
 }
 
-// 处理写事件 将OnRead加入线程池的任务队列
+// 处理写事件 将OnWrite加入线程池的任务队列
 void WebServer::DealWrite_(HttpConn* client) {
     assert(client);
     ExtentTime_(client);
@@ -229,7 +228,7 @@ bool WebServer::InitSocket_() {
     addr.sin_port = htons(port_);
     struct linger optLinger = {0};              // 用于设置tcp断开链接时的断开方式
     if(openLinger_) {
-        // 优雅关闭 发送玩剩余数据或超时后关闭
+        // 优雅关闭 发送完剩余数据或超时后关闭
         optLinger.l_onoff = 1;
         optLinger.l_linger = 1;
     }
